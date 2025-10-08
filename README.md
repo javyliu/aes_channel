@@ -74,6 +74,11 @@ go run cmd/main.go -lip :18305 -rip 远程IP:18304 -mode 3
 - Go 1.23+
 - 标准库：`crypto/aes`, `crypto/cipher`, `net`, `io`, `log`
 
+## Dcoker 启动
+```bash
+docker run --rm -e LOCAL_IP=:18305 -e SERVER_IP=x.x.x.x:18304 -e AES_KEY=test -e TIMEOUT=60 -e AES_MODE=1 javyliu/aes_channel
+```
+
 ## 许可证
 
 MIT License
