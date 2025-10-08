@@ -15,12 +15,16 @@ var localIp *string
 var serverIp *string
 var key *string
 var timeout *int
+var handleMode *int
 
+// 监听连接的数据的处理模式，加密模式，复制模式，解密模式
+// 加密端与解密端需互换端口
 func main() {
 	localIp = flag.String("lip", ":18305", "本地服务监听地址")
 	serverIp = flag.String("rip", ":18304", "远程服务监听地址")
 	key = flag.String("key", "test", "aes加密key")
 	timeout = flag.Int("td", 60, "连接到远程服务器的超时时间单位 秒")
+	handleMode = flag.Int("mode", aescrypto.Encrypt, "监听到连接的数据的处理模式，1：加密模式，2：解密模式，3：复制模式，默认为加密模式")
 
 	flag.Parse()
 	log.SetPrefix("[local] ")
@@ -69,32 +73,37 @@ func handleConn(conn net.Conn) {
 
 	log.Println("AconnId:", clientA.Id, "BconnId:", clientB.Id)
 	wg.Add(2)
-	// stopChannel := make(chan bool, 2)
 
 	// 加密并发送到服务B
 	go func() {
 		defer wg.Done()
 		defer log.Println("[-------A closed]", clientA.Id)
-		log.Println("start client C -> A -> B")
-		// defer func() { stopChannel <- true }() // stopChannel <- true
-		// defer log.Println("[---------A close]", clientA.Id)
-		// aeschiper.ReadAndWrite(conn, bConn, true)
-		aeschiper.ReadAndWriteStream(*clientA, *clientB, true)
+		aeschiper.ReadAndWriteStream(*clientA, *clientB, *handleMode)
 	}()
 
 	// 从服务B读取并解密然后发送到客户端
 	go func() {
-		// defer func() { stopChannel <- true }() // stopChannel <- true
-
 		defer wg.Done()
 		defer log.Println("[-------B  closed]", clientB.Id)
-		log.Println("start client B -> A -> C")
-		// aeschiper.ReadAndWrite(bConn, conn, false)
-		aeschiper.ReadAndWriteStream(*clientB, *clientA, false)
+		aeschiper.ReadAndWriteStream(*clientB, *clientA, revertMode(*handleMode))
 	}()
 
-	// <-stopChannel
-	// time.Sleep(5 * time.Second)
 	wg.Wait()
 
+}
+
+// 加密的反操作就是解密
+// 解密的反操作就是加密
+// 复制的反操作就是复制
+func revertMode(mode int) int {
+	switch mode {
+	case aescrypto.Encrypt:
+		return aescrypto.Decrypt
+	case aescrypto.Decrypt:
+		return aescrypto.Encrypt
+	case aescrypto.Copy:
+		return aescrypto.Copy
+	default:
+		return aescrypto.Copy
+	}
 }
