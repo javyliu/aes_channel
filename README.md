@@ -2,36 +2,24 @@
 
 一个基于 AES 加密的 TCP 通道转发工具，支持加密、解密和复制三种数据处理模式。
 
-## 项目结构
-
-```
-.gitignore
-go.mod
-cmd/
-  main.go
-internal/
-  client.go
-pkg/
-  aescrypto/
-    aescrypto.go
-test/
-```
 
 ## 功能说明
 
-- **cmd/main.go**  
+
   主程序入口，监听本地端口，转发数据到远程服务，并根据模式进行加密、解密或复制。
-- **internal/client.go**  
-  客户端连接封装，生成唯一连接 ID。
-- **pkg/aescrypto/aescrypto.go**  
+
   AES 加密/解密流处理，支持三种模式：加密、解密、复制。
 
+## 编译
+```bash
+go build -o aes_channel cmd/main.go
+```
 ## 使用方法
 
 ### 启动服务
 
 ```sh
-go run cmd/main.go -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1
+aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1
 ```
 
 参数说明：
@@ -52,13 +40,13 @@ go run cmd/main.go -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mo
 - 本地加密转发：
 
   ```sh
-  go run cmd/main.go -lip :18305 -rip 远程IP:18304 -key mysecret -mode 1
+  aes_channel -lip :18305 -rip 远程IP:18304 -key mysecret -mode 1
   ```
 
 - 远程解密转发：
 
   ```sh
-  go run cmd/main.go -lip :18304 -rip 目标服务IP:端口 -key mysecret -mode 2
+  aes_channel -lip :18304 -rip 目标服务IP:端口 -key mysecret -mode 2
   ```
 
 ### 复制模式
@@ -66,7 +54,7 @@ go run cmd/main.go -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mo
 无需加密/解密，仅做数据转发：
 
 ```sh
-go run cmd/main.go -lip :18305 -rip 远程IP:18304 -mode 3
+aes_channel -lip :18305 -rip 远程IP:18304 -mode 3
 ```
 
 ## 依赖
@@ -76,7 +64,7 @@ go run cmd/main.go -lip :18305 -rip 远程IP:18304 -mode 3
 
 ## Dcoker 启动
 ```bash
-docker run --rm -e LOCAL_IP=:18305 -e SERVER_IP=x.x.x.x:18304 -e AES_KEY=test -e TIMEOUT=60 -e AES_MODE=1 javyliu/aes_channel
+docker run --rm -e LOCAL_IP=:18305 -e SERVER_IP=x.x.x.x:18304 -e AES_KEY=test -e TIMEOUT=60 -e AES_MODE=1 -p 18304:18302 javyliu/aes_channel
 ```
 
 ## 许可证
@@ -86,3 +74,4 @@ MIT License
 ---
 
 详细实现请参考：[cmd/main.go](cmd/main.go)、[`internal.Client`](internal/client.go)、[`pkg/aescrypto.AesChiper`](pkg/aescrypto/aescrypto.go)
+
