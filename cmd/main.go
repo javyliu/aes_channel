@@ -58,10 +58,9 @@ func handleConn(conn net.Conn) {
 
 	// 发送到服务B
 	if err != nil {
-		log.Println(&conn, "[error_dial]", err)
+		log.Println(&bConn, "[error_dial]", err)
 		return
 	}
-	bConn.SetDeadline(time.Now().Add(time.Second * time.Duration(*timeout)))
 	defer bConn.Close()
 
 	aeschiper, err := aescrypto.New(*key)
@@ -70,10 +69,10 @@ func handleConn(conn net.Conn) {
 		return
 	}
 
-	clientA := internal.NewClient(conn)
-	clientB := internal.NewClient(bConn)
+	clientA := internal.NewClient(conn, *timeout)
+	clientB := internal.NewClient(bConn, *timeout)
 
-	log.Println("AconnId:", clientA.Id, "BconnId:", clientB.Id)
+	log.Println("AconnId:", clientA.Id, ", BconnId:", clientB.Id)
 	wg.Add(2)
 
 	// 加密并发送到服务B

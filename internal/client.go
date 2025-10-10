@@ -3,6 +3,7 @@ package internal
 import (
 	"fmt"
 	"net"
+	"time"
 )
 
 var execCount = 0
@@ -12,8 +13,12 @@ type Client struct {
 	Id   string
 }
 
-func NewClient(conn net.Conn) *Client {
+func NewClient(conn net.Conn, timeout int) *Client {
 	id := ConnID(conn)
+	if timeout > 0 {
+		conn.SetDeadline(time.Now().Add(time.Second * time.Duration(timeout)))
+	}
+
 	return &Client{
 		Conn: conn,
 		Id:   id,
