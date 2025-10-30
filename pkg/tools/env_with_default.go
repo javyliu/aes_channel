@@ -8,6 +8,7 @@ import (
 
 type EnvParserFunc[T any] func(string) (T, error)
 
+// GetenvOrDefault 获取环境变量，如果不存在返回默认值
 func GetenvOrDefault[T any](key string, defaultValue T, parseFn EnvParserFunc[T]) T {
 	val := os.Getenv(key)
 	if val == "" {
