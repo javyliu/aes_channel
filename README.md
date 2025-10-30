@@ -67,6 +67,11 @@ aes_channel -lip :18305 -rip 远程IP:18304 -mode 3
 docker run --rm -e LOCAL_IP=:18305 -e SERVER_IP=x.x.x.x:18304 -e AES_KEY=test -e TIMEOUT=60 -e AES_MODE=1 -p 18304:18302 javyliu/aes_channel
 ```
 
+## 同时启动一个web服务
+
+为了在移动端使用`自动配置代理`，在环境变量设置`WEB_PORT=:xx`, 或 在启动参数中加 `-web_port :xx`， 那么同时会启动一个静态文件访问的web服务器，提供的文件需放在在当前启动目录的web文件夹中
+
+
 ## 许可证
 
 MIT License
