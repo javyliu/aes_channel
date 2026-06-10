@@ -19,7 +19,7 @@ go build -o aes_channel cmd/main.go
 ### 启动服务
 
 ```sh
-aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1
+aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1 -web_port :81
 ```
 
 参数说明：
@@ -28,6 +28,7 @@ aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1
 - `-rip`：远程服务地址（默认 `:18304`）
 - `-key`：AES 加密密钥（默认 `test`，建议自定义）
 - `-td`：连接超时时间（秒，默认 `60`）
+- `-web_port`: 启动一个web服务器提供静态文件访问，默认不设置
 - `-mode`：数据处理模式  
   - `1`：加密模式（Encrypt）  
   - `2`：解密模式（Decrypt）  
