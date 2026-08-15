@@ -13,6 +13,11 @@
 ## 编译
 ```bash
 go build -o aes_channel cmd/main.go
+
+# 编译到mac x86/64
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o aes_channel cmd/main.go
+# linux 
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aes_channel cmd/main.go
 ```
 ## 使用方法
 
