@@ -14,10 +14,17 @@
 ```bash
 go build -o aes_channel cmd/main.go
 
-# 编译到mac x86/64
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o aes_channel cmd/main.go
-# linux 
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aes_channel cmd/main.go
+build-linux-intel:
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o aes_channel-linux-amd64 cmd/main.go
+
+build-windows-intel:
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o aes_channel-windows-amd64.exe cmd/main.go
+
+build-mac-intel:
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o aes_channel-darwin-amd64 cmd/main.go
+
+build-mac-m1/2:
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o aes_channel-darwin-amd64 cmd/main.go
 ```
 ## 使用方法
 
