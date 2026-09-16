@@ -41,9 +41,9 @@ aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1 -w
 - `-key`：AES 加密密钥（默认 `test`，建议自定义）
 - `-td`：连接超时时间（秒，默认 `60`）
 - `-web_port`: 启动一个web服务器提供静态文件访问，默认不设置
-- `-mode`：数据处理模式  
-  - `1`：加密模式（Encrypt）  
-  - `2`：解密模式（Decrypt）  
+- `-mode`：数据处理模式
+  - `1`：加密模式（Encrypt）入口端,用户访问-加密发送到目标-接收解密-返回给用户
+  - `2`：解密模式（Decrypt）目标端，接收加密流量并解密-发送到本地服务-接收本地服务返回数据并加密-发送回入口端
   - `3`：复制模式（Copy）
 
 **加密端与解密端需互换端口和模式。**
@@ -60,6 +60,16 @@ aes_channel -lip :18305 -rip 127.0.0.1:18304 -key your_aes_key -td 60 -mode 1 -w
 
   ```sh
   aes_channel -lip :18304 -rip 目标服务IP:端口 -key mysecret -mode 2
+  ```
+
+- 80 端口加密流量转发与接收
+  ```sh
+  # 入口
+  aes_channel -lip :80 -rip 120.92.151.127:40000 -key mysecret -mode 1 -td 120
+
+  # 目标
+  aes_channel -lip :40000 -rip 127.0.0.1:81 -key mysecret -mode 2 -td 120
+
   ```
 
 ### 复制模式
