@@ -3,10 +3,10 @@ package internal
 import (
 	"fmt"
 	"net"
-	"time"
+	"sync/atomic"
 )
 
-var execCount = 0
+var execCount atomic.Uint64
 
 type Client struct {
 	Conn net.Conn
@@ -15,10 +15,6 @@ type Client struct {
 
 func NewClient(conn net.Conn, timeout int) *Client {
 	id := ConnID(conn)
-	if timeout > 0 {
-		conn.SetDeadline(time.Now().Add(time.Second * time.Duration(timeout)))
-	}
-
 	return &Client{
 		Conn: conn,
 		Id:   id,
@@ -26,14 +22,18 @@ func NewClient(conn net.Conn, timeout int) *Client {
 }
 
 func ConnID(conn net.Conn) string {
-	// host, port, err := net.SplitHostPort(conn.RemoteAddr().String())
-	// if err != nil {
-	// 	return ""
-	// }
-	if execCount > 100000 {
-		execCount = 0
+	id := execCount.Add(1)
+	return fmt.Sprintf("conid[%d]", id)
+}
+
+// CloseWriter 支持 TCP 半关闭的接口
+type CloseWriter interface {
+	CloseWrite() error
+}
+
+// CloseWrite 若连接支持半关闭则调用 CloseWrite 发送 TCP FIN
+func CloseWrite(conn net.Conn) {
+	if cw, ok := conn.(CloseWriter); ok {
+		_ = cw.CloseWrite()
 	}
-	execCount++
-	// return fmt.Sprintf("%v:%v", conn.RemoteAddr(), execCount)
-	return fmt.Sprintf("conid[%v]", execCount)
 }

@@ -4,81 +4,126 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
 	"io"
-	"log"
+	"sync"
 
 	"github.com/javyliu/aes_channel/internal"
 )
 
-// func init() {
-// 	log.SetPrefix("[aescbc] ")
-// }
-
-// 用于定义监听到连接的数据的处理模式，加密模式，复制模式，解密模式，默认加密
-// 加密模式下，把a端接收到的数据加密后发给b端，
-// 解密模式下，把a端发来的数据解密后发给b端
-// 复制模式下，把a端发来的数据直接发给b端
+// 数据处理模式：加密模式，解密模式，复制模式，默认为加密模式
 const (
 	Encrypt = iota + 1
 	Decrypt
 	Copy
 )
 
-type AesChiper struct {
-	Block   *cipher.Block
-	Iv      *[]byte
-	AconnId string
-	BconnId string
+var bufPool = sync.Pool{
+	New: func() any {
+		b := make([]byte, 32*1024)
+		return &b
+	},
 }
 
-func New(key string) (*AesChiper, error) {
-	block, err := aes.NewCipher([]byte(key))
+// AesCipher AES 加解密器
+type AesCipher struct {
+	block cipher.Block
+}
+
+// AesChiper 兼容历史拼写别名
+type AesChiper = AesCipher
+
+// deriveKey 将任意长度的密钥派生为合法的 AES 密钥 (16, 24 或 32 字节)
+// 若用户传入的密钥长度已为 16/24/32 字节则直接使用，否则采用 SHA-256 派生 32 字节密钥 (AES-256)
+func deriveKey(key string) []byte {
+	k := []byte(key)
+	switch len(k) {
+	case 16, 24, 32:
+		return k
+	default:
+		h := sha256.Sum256(k)
+		return h[:]
+	}
+}
+
+// New 创建一个新的 AesCipher 实例
+func New(key string) (*AesCipher, error) {
+	block, err := aes.NewCipher(deriveKey(key))
 	if err != nil {
-		log.Println(err)
 		return nil, err
 	}
-	iv := make([]byte, aes.BlockSize)
-
-	return &AesChiper{
-		Block: &block,
-		Iv:    &iv,
+	return &AesCipher{
+		block: block,
 	}, nil
 }
 
-func (c *AesChiper) ReadAndWriteStream(src internal.Client, dst internal.Client, mode int) error {
+// Pipe 从 src 读取数据，处理后写入 dst。
+// 针对 Encrypt / Decrypt 模式进行原地 AES-CTR 加解密，利用 sync.Pool 消除高频堆内存分配；
+// 每个流独立分配 16 字节 IV，彻底解决双向并发竞争问题。
+func (c *AesCipher) Pipe(dst io.Writer, src io.Reader, mode int) (int64, error) {
 	var stream cipher.Stream
-	var iv = c.Iv
 
 	switch mode {
 	case Encrypt:
-		if _, err := rand.Read(*iv); err != nil {
-			return err
+		var iv [aes.BlockSize]byte
+		if _, err := io.ReadFull(rand.Reader, iv[:]); err != nil {
+			return 0, err
 		}
-		// 将 IV 写入目标连接，以便解密时使用
-		if _, err := dst.Conn.Write(*iv); err != nil {
-			return err
+		// 将 IV 写入目标连接首部
+		if _, err := dst.Write(iv[:]); err != nil {
+			return 0, err
 		}
+		stream = cipher.NewCTR(c.block, iv[:])
+
 	case Decrypt:
-		// 从源连接中读取 IV,以便解密
-		if _, err := io.ReadFull(src.Conn, *iv); err != nil {
-			return err
+		var iv [aes.BlockSize]byte
+		// 从源连接首部读取 IV
+		if _, err := io.ReadFull(src, iv[:]); err != nil {
+			return 0, err
 		}
+		stream = cipher.NewCTR(c.block, iv[:])
+
 	case Copy:
-		if _, err := io.Copy(dst.Conn, src.Conn); err != nil {
-			return err
+		// 复制模式，不加解密
+	default:
+		return 0, fmt.Errorf("invalid mode: %d", mode)
+	}
+
+	bufPtr := bufPool.Get().(*[]byte)
+	buf := *bufPtr
+	defer bufPool.Put(bufPtr)
+
+	var written int64
+	for {
+		nr, rErr := src.Read(buf)
+		if nr > 0 {
+			if stream != nil {
+				// 原地异或流加解密，零堆内存分配
+				stream.XORKeyStream(buf[:nr], buf[:nr])
+			}
+			nw, wErr := dst.Write(buf[:nr])
+			if nw > 0 {
+				written += int64(nw)
+			}
+			if wErr != nil {
+				return written, wErr
+			}
+			if nr != nw {
+				return written, io.ErrShortWrite
+			}
 		}
-		return nil
+		if rErr != nil {
+			if rErr == io.EOF {
+				return written, nil
+			}
+			return written, rErr
+		}
 	}
+}
 
-	stream = cipher.NewCTR(*c.Block, *iv)
-
-	// 创建 StreamWriter。 这是一个包装器，它将流 (stream，即 CTR 加密/解密器) 链接到底层写入器 (dst.Conn)。任何写入 writer 的数据都会先经过 CTR 处理，再写入 dst.Conn。
-	writer := cipher.StreamWriter{S: stream, W: dst.Conn}
-	if _, err := io.Copy(writer, src.Conn); err != nil {
-		log.Println("[error_copy]", src.Id, dst.Id, err)
-		return err
-	}
-	log.Println("[io_copy]", src.Id, dst.Id)
-
-	return nil
+// ReadAndWriteStream 兼容旧版调用签名
+func (c *AesCipher) ReadAndWriteStream(src internal.Client, dst internal.Client, mode int) error {
+	_, err := c.Pipe(dst.Conn, src.Conn, mode)
+	return err
 }

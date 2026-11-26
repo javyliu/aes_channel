@@ -26,6 +26,11 @@ func GetenvOrDefault[T any](key string, defaultValue T, parseFn EnvParserFunc[T]
 func IntParse(s string) (int, error) {
 	return strconv.Atoi(s)
 }
+
 func StringParse(s string) (string, error) {
 	return s, nil
+}
+
+func BoolParse(s string) (bool, error) {
+	return strconv.ParseBool(s)
 }
